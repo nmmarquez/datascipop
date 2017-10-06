@@ -6,7 +6,7 @@ setwd("~/Documents/datascipop/LabWeek1_baby_names/")
 
 # Read in all state specific data at once 
 data <- do.call(rbind, lapply(c(state.abb, "DC"), function(x) 
-    read.csv(paste0("./statenames/", x, ".TXT"), header=F)))
+    read.csv(paste0("./state_names/", x, ".TXT"), header=F)))
 # Reassign column names
 names(data) <- c("State", "Sex", "Birthyear", "Name", "Frequency")
 
@@ -71,17 +71,6 @@ ggplot(data=sexratiodata, aes(x=Birthyear, y=Ratio)) + geom_point()
 (palive <- LT %>% 
     mutate(Fsurvive=lx/100000) %>%
     select(Year, Age, Fsurvive))
-
-(namesubset <- data %>%
-    # subset by name
-    filter(Name == testname) %>%
-    # group by birth year
-    group_by(Birthyear) %>%
-    # get the count of the names 
-    summarize(Namecount=sum(Frequency)) %>%
-    mutate(Year=Birthyear) %>%
-    left_join(palive, by="Year") %>%
-    mutate(Alive=Namecount*Fsurvive))
 
 (namesubsetstate <- data %>% 
         # subset by name
