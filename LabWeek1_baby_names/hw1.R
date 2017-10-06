@@ -72,4 +72,6 @@ ggplot(data=sexratiodata, aes(x=Birthyear, y=Ratio)) + geom_point()
         group_by(State) %>% 
         summarise(personyears=sum(Alive, na.rm=T), 
                   personyearsw=sum(Alivew, na.rm=T)) %>%
-        mutate(mean_age=personyearsw/personyears))
+        mutate(mean_year=2015-personyearsw/personyears))
+
+qplot(meanageallstates$mean_year)
