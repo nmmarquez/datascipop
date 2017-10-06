@@ -1,0 +1,13 @@
+*.txt
+*.TXT
+*.csv
+*.CSV
+*.pdf
+*.PDF
+*.Rdata
+*.rdata
+*.Rda
+*.rda
+*.Rhistory
+*.Rapp.history
+*.DS_Store
