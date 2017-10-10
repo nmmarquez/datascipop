@@ -1,7 +1,7 @@
 rm(list=ls())
 library(dplyr)
 library(ggplot2)
-
+library(pander)
 setwd("~/Documents/datascipop/LabWeek1_baby_names/")
 
 # Read in all state specific data at once 
@@ -99,3 +99,9 @@ ggplot(data=sexratiodata, aes(x=Birthyear, y=Ratio)) + geom_point()
 
 # histogram of data
 qplot(meanageallstates$mean_year)
+# create a table with results
+pander(meanageallstates %>% select(State, mean_year))
+# get a range of the values
+range(meanageallstates$mean_year)
+# get the standard deviation
+sd(meanageallstates$mean_year)
