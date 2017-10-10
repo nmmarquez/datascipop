@@ -11,3 +11,6 @@
 *.Rhistory
 *.Rapp.history
 *.DS_Store
+*.json
+*.pem
+*/credentials/*

@@ -20,7 +20,7 @@ testdatasubset <- data %>%
     filter(Name == testname & State == teststate) %>%
     # group by the year
     group_by(Birthyear) %>%
-    # get the sum of the counts for each year 
+    # get the sum of the counts for each year
     summarize(Namecount=sum(Frequency))
 
 statedatasubset <- data %>% 
@@ -55,7 +55,7 @@ sexratiodata <- data %>%
     # group by the birth year
     group_by(Birthyear) %>%
     # calculate the ratio
-    summarize(Ratio = Namecount[Sex=="F"]/Namecount[Sex=="M"])
+    summarize(Ratio=Namecount[Sex=="F"]/Namecount[Sex=="M"])
 
 # plot the time series
 ggplot(data=sexratiodata, aes(x=Birthyear, y=Ratio)) + geom_point()
