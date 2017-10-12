@@ -52,4 +52,8 @@ score_params <- sent_scores %>% dplyr::group_by(tag) %>%
     dplyr::summarize(mean_score=mean(score), sd_score=sd(score))
 score_params
 
+# for a CI interval of .01 or less we need the sandard error to be 
+# .01 / (2 * 1.96)
 
+score_params <- score_params %>% 
+    mutate(N_needed=(sd_score * ((1.96 * 2) / .01))**2)
