@@ -1,0 +1,153 @@
+---
+title: "HW1: Baby Names"
+author: "Neal Marquez"
+date: "October 10, 2017"
+output: pdf_document
+---
+
+## Question 1
+
+### Precursor load the data
+
+```{r warning=FALSE,message=FALSE,error=FALSE}
+rm(list=ls())
+library(dplyr)
+library(ggplot2)
+library(pander)
+setwd("~/Documents/datascipop/LabWeek1_baby_names/")
+
+# Read in all state specific data at once 
+data <- do.call(rbind, lapply(c(state.abb, "DC"), function(x) 
+    read.csv(paste0("./state_names/", x, ".TXT"), header=F)))
+# Reassign column names
+names(data) <- c("State", "Sex", "Birthyear", "Name", "Frequency")
+```
+
+a) Evaluate the popularity of the name over time by calculating the fraction/percentage of births with that name in the state over time, and plot it.
+
+```{r}
+testname <- "Alex"
+teststate <- "CO"
+
+testdatasubset <- data %>% 
+    # filter data by name and state
+    filter(Name == testname & State == teststate) %>%
+    # group by the year
+    group_by(Birthyear) %>%
+    # get the sum of the counts for each year
+    summarize(Namecount=sum(Frequency))
+
+statedatasubset <- data %>% 
+    # filter by state
+    filter(State == teststate) %>%
+    # group by year
+    group_by(Birthyear) %>% 
+    # get the count of all names for each year
+    summarize(Birthcount=sum(Frequency))
+
+namepdata <- statedatasubset %>%
+    # join the two data sets together using the all name data as full key
+    left_join(testdatasubset, by="Birthyear") %>% 
+    # Calculate the probability of test name
+    mutate(Namecount = replace(Namecount, is.na(Namecount), 0), 
+           Namep=Namecount / Birthcount)
+
+# plot the time series
+ggplot(namepdata, aes(x=Birthyear, Namep)) + geom_point()
+```
+
+b) Evaluate whether the ratio between boys and girls for that name has been relatively stable or has changed over time. 
+
+```{r}
+sexratiodata <- data %>% 
+    # filter by name and state
+    filter(Name == testname & State == teststate) %>%
+    # group by year and sex
+    group_by(Birthyear, Sex) %>%
+    # get the count of each year for both sexs
+    summarize(Namecount=sum(Frequency)) %>%
+    # join on a dataset that has all year sex combinations
+    right_join(unique(data[,c("Sex", "Birthyear")])) %>%
+    # group by the birth year
+    group_by(Birthyear) %>%
+    # calculate the ratio
+    summarize(Ratio=Namecount[Sex=="F"]/Namecount[Sex=="M"])
+
+# plot the time series
+ggplot(data=sexratiodata, aes(x=Birthyear, y=Ratio)) + geom_point()
+```
+
+c) Compute the average year at birth for people with that name who are alive in 2015 across all states. Report it in a table. Is there heterogeneity across states for that name? Or are the patterns fairly uniform?
+
+```{r}
+# read in the life table data set filtering only for 2015
+LT <- read.table("./bltper_1x1.txt", skip=2, header=T) %>%
+        mutate(Age=as.numeric(as.character(Age))) %>% 
+        filter(Year+Age==2015)
+
+# calculate the probability of being alive for all ages in 2015
+palive <- LT %>% 
+    mutate(Fsurvive=lx/100000) %>%
+    select(Year, Age, Fsurvive)
+
+namesubsetstate <- data %>% 
+        # subset by name
+        filter(Name == testname) %>%
+        # group by year and state
+        group_by(Birthyear, State) %>%
+        # get the sum of the name count 
+        summarize(Namecount=sum(Frequency)) %>%
+        # Cretae new year variable so that the names match
+        mutate(Year=Birthyear) %>%
+        # join datatsets on years
+        left_join(palive, by="Year") %>%
+        # estimate number of individuals alive based on survival prob
+        mutate(Alive=Namecount*Fsurvive)
+
+meanageallstates <- namesubsetstate %>% 
+        # Create an age weighted alive number variable
+        mutate(Alivew=Alive*Age) %>%
+        # group by state across all years
+        group_by(State) %>%
+        # calcualte aggregated alive and alive weighted numbers
+        summarise(personyears=sum(Alive, na.rm=T), 
+                  personyearsw=sum(Alivew, na.rm=T)) %>%
+        # get the mean year of birth by subtracting age from 2015
+        mutate(mean_year=2015-personyearsw/personyears)
+
+# get a range of the values
+
+rangeyears <- round(range(meanageallstates$mean_year),2)
+
+# get the standard deviation
+sdyears <- round(sd(meanageallstates$mean_year),2)
+```
+
+The range of the values is (`r rangeyears`).  
+
+The SD of the values is (`r sdyears`).
+
+```{r}
+pander(meanageallstates %>% select(State, mean_year))
+```
+
+## Question 2
+
+"Big Data" is a term used to describe data that is too large to be assessed using traditional analytical means. It can either mean that the data itself is too large to fit on a single computer to be analyzed, the data is created at a speed that makes it impossible to be up to date on its structure at any given time, or that the variety of the types of information that exists is too heterogeneous. While notions of big data have largely surrounded what we can do with increasing amounts of data legitimate concerns have risen on how we should cautiously approach this new influx of information. Tales of the hubris of big data have been abundant and caution us to use big data in a conscientious manner.
+
+### Concerns of Big data
+
+Big data comes in many forms but as social scientist we are often most enthused with data that informs us of the the thoughts and connection of a society of interest. Social media in particular presents us with a trove of data on how people view themselves, how they want to reinforce those views on others and how we choose to connect with others. This information, however, is far from perfect and we must acknowledge the limitations of the data we decide to work with.
+
+A huge concern of social media data usage is whether the data is representative of the population that we want to study. Each platform of social media has its own user group that is a biased selection of any national population, in the US online users are generally younger, male, and white. In addition each platform has it own unique demographic user base so any generalizations about online users can not be used when looking at a specific online platform.
+
+In addition to this concern there is the chance that your data includes information about users that are not users at all but rather bots, programs that are designed to appear as real human social media user but is just a piece of code. Bots have been found to have been used in news concerning elections to get certain articles trending in order to bias what the general public sees in their news feeds. They have also been used for economic purposes such as writing positive reviews for products in order to have a more favorable score in Amazon. 
+
+Even if both of these concerns could be addressed there is still the problem that exists for social scientists of using data opportunistically. Unless we are the creators of any particular social media platform then we can not dictate the questions asked or the nature of behaviors on the platform. Because of this we can never be sure what behaviors users are choosing to participate in and whether that is a reflection of their true self.
+
+### Benefits of Big data 
+
+The benefits of big data, however, can not be ignored. Big data allows us to collect an unprecedented amount of data on users who may not have been reached otherwise because of the growing scope of internet and phone users. Individuals whom were very unlikely to be part of a survey design are very likely to have some kind of digital footprint.
+
+Additionally the new source of data allows us to test against old theories of social organization and be able to re-evaluate whether previous theories hold or if there is a disjuncture between known phenomena and the outputs of our analysis using big data.
+
