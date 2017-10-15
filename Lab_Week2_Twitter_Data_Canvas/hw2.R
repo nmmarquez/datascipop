@@ -2,8 +2,10 @@ rm(list=ls())
 setwd("~/Documents/datascipop/Lab_Week2_Twitter_Data_Canvas/")
 
 library(ROAuth)
+library(streamR)
 library(twitteR)
 library(dplyr)
+library(rjson)
 source('functions_by_pablobarbera.R')
 source('./sentiment.r')
 ## insert here your API key and secret
@@ -57,3 +59,14 @@ score_params
 
 score_params <- score_params %>% 
     mutate(N_needed=(sd_score * ((1.96 * 2) / .01))**2)
+
+bzfiles <- paste0("./01/00/", c("00", "01", "02"), ".json.bz2")
+
+tweet_df <- lapply(bzfiles, parseTweets)
+
+top_follower <- do.call(rbind, lapply(1:3, function(i)
+    tweet_df[[i]] %>% select(user_id_str, followers_count) 
+    %>% filter(followers_count > 2000)
+    %>% unique %>% mutate(dataset=i))) %>% arrange(desc(followers_count))
+
+top_follower %>% group_by(dataset) %>% summarize(count=n())
