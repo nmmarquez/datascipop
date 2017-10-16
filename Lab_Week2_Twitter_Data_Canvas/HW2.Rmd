@@ -2,13 +2,13 @@
 title: "Homework 2"
 author: "Neal Marquez"
 date: "October 14, 2017"
-output: html_document
+output: pdf_document
 ---
 
 
 ```{r warning=FALSE,message=FALSE,error=FALSE}
 rm(list=ls())
-setwd("~/Documents/datascipop/Lab_Week2_Twitter_Data_Canvas/")
+# set wd to this files location
 
 library(ROAuth)
 library(streamR)
@@ -82,9 +82,23 @@ pander(score_params)
 
 4) Evaluate the sample size needed to achieve a confidence interval with a width of 0.01 or less, for the average sentiments for each of your two hashtags.
 
+$$
+\begin{aligned}
+CI_{\mu_x} & = \mu_x + 1.96SE_x - (\mu_x - 1.96SE_x) \\
+CI_{\mu_x} & = 3.92 SE_x \\
+.01 & = 3.92 SE_x \\
+SE_{\mu_x} & = \frac{.01}{3.92} \\
+SE_{\mu_x} & = \frac{SD_x}{\sqrt{N}} \\
+\frac{SD_x}{\sqrt{N}} & = \frac{.01}{3.92} \\
+\frac{\sqrt{N}}{SD_x} & = \frac{3.92}{.01} \\
+\sqrt{N} & = \frac{3.92SD_x}{.01} \\
+N & = \Bigg (\frac{3.92SD_x}{.01} \Bigg{)}^2
+\end{aligned}
+$$
+
 ```{R}
 N_df <- score_params %>% 
-    mutate(N_needed=(sd_score * ((1.96 * 2) / .01))**2) %>%
+    mutate(N_needed=(sd_score * ((3.92) / .01))**2) %>%
     select(tag, N_needed)
 
 pander(N_df)
