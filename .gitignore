@@ -15,4 +15,6 @@
 *.pem
 */credentials/*
 *.bz2
+*.Rproj
 
+.Rproj.user
