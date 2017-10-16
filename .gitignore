@@ -16,5 +16,7 @@
 */credentials/*
 *.bz2
 *.Rproj
+*.yml
+*.jpg
 
 .Rproj.user
