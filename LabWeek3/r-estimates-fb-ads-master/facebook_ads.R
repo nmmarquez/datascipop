@@ -195,7 +195,7 @@ admin1_df <- function(iso2){
 iso2s <- c("US", "CA", "MX")
 facepop <- do.call(rbind, lapply(iso2s, country_result))
 multi_country_df <- do.call(rbind, lapply(tolower(iso2s), function(x) 
-  admin1_df(x)))
+  admin1_df(x))) %>% filter(date == 2016)
 
 #' **Exercise 2:**
 #' Pick another US state and age range, and compare the numbers of men and women.
