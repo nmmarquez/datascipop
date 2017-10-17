@@ -143,7 +143,59 @@ country_result <- function(iso2){
   return(data.frame(Country=iso2, Population=fromJSON(prettify(r))$data$users))
 }
 
-facepop <- do.call(rbind, lapply(c("US", "CA", "MX"), country_result))
+process_wb_data <- function(d) {
+  as_data_frame(d) %>%
+    unnest() %>%
+    select(-decimal) %>%
+    group_by(value, date) %>%
+    summarise_all(first) %>%
+    # try out `last` instead of `first` here!
+    ungroup()
+}
+
+admin1_df <- function(iso2){
+  wb_url <- "http://api.worldbank.org"
+  
+  wb_query_pg1 <- list(
+    page = 1,
+    format = "json"
+  )
+  r_pop_pg1 <- 
+    GET(wb_url, 
+        path = paste0("countries/", iso2, "/indicators/SP.POP.TOTL"),
+        query = wb_query_pg1)
+  
+  wb_query_pg2 <- list(
+    page = 2,
+    format = "json"
+  )
+  
+  r_pop_pg2 <- 
+    GET(wb_url, 
+        path = paste0("countries/", iso2, "/indicators/SP.POP.TOTL"), 
+        query = wb_query_pg2)
+  df_pg1 <- 
+    map(content(r_pop_pg1, as = "parsed")[[2]], 
+        process_wb_data) %>% 
+    bind_rows()
+  
+  df_pg2 <- 
+    map(content(r_pop_pg2, as = "parsed")[[2]], 
+        process_wb_data) %>% 
+    bind_rows()
+  
+  r_pop_df <- 
+    bind_rows(df_pg2, df_pg1) %>%
+    mutate(value = as.numeric(value), 
+           date = as.numeric(date))
+  
+  r_pop_df
+}
+
+iso2s <- c("US", "CA", "MX")
+facepop <- do.call(rbind, lapply(iso2s, country_result))
+multi_country_df <- do.call(rbind, lapply(tolower(iso2s), function(x) 
+  admin1_df(x)))
 
 #' **Exercise 2:**
 #' Pick another US state and age range, and compare the numbers of men and women.
