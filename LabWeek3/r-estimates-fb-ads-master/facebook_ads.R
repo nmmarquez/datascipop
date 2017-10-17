@@ -24,7 +24,11 @@ library(yaml)
 #' We need two pieces of information from the config file:
 #' an access token, and an ads account.
 #' Make sure the ads account number is prefixed with "act_".
-fb_cfg <- yaml.load_file("facebook_config.yml")
+
+load("../tokens.Rdata")
+#fb_cfg <- yaml.load_file("facebook_config.yml")
+fb_cfg <- list(access_token=fb_token, 
+               ad_account_id=paste0("act_", buisiness_id))
 
 #' The url for accessing 'reach' estimates is based off of the ads account, 
 #' so we construct it by pasting strings onto the base url
@@ -43,6 +47,7 @@ fb_query <- list(
 )
 
 r <- GET(fb_ads_url, query = fb_query)
+prettify(r)
 
 #' ## Example 2: Young men and women in Washington State
 #' 
@@ -107,7 +112,7 @@ process_fb_response <- function(ts, r) {
 
 #' ## 
 
-bind_rows(
+combinded_df <- bind_rows(
   process_fb_response(ts1, r1),
   process_fb_response(ts2, r2)
 )
@@ -122,6 +127,23 @@ bind_rows(
 #' Use two-digit country codes for countries: 
 #' https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2
 #' 
+
+country_result <- function(iso2){
+  targeting_specs <- paste0('{"geo_locations": {"countries": ["', iso2, '"]}}')
+  
+  fb_query_multiple <- list(
+    access_token = fb_cfg$access_token, 
+    currency = "USD", 
+    optimize_for = "NONE", 
+    targeting_spec = targeting_specs
+  )
+  
+  r <- GET(fb_ads_url, query = fb_query_multiple)
+  
+  return(data.frame(Country=iso2, Population=fromJSON(prettify(r))$data$users))
+}
+
+facepop <- do.call(rbind, lapply(c("US", "CA", "MX"), country_result))
 
 #' **Exercise 2:**
 #' Pick another US state and age range, and compare the numbers of men and women.
