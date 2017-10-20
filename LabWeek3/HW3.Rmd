@@ -1,0 +1,189 @@
+---
+title: "Homework 3"
+author: "Neal Marquez"
+date: "October 23, 2017"
+output: pdf_document
+---
+
+## Libraries
+
+```{r warning=FALSE,message=FALSE,error=FALSE}
+library(httr)
+library(jsonlite)
+library(tidyverse)
+library(pander)
+library(ggplot2)
+library(stringr)
+```
+
+## Utilities
+
+```{r}
+acs_url <- "https://api.census.gov/data/2015/acs5"
+wb_url <- "http://api.worldbank.org"
+load("./tokens.Rdata")
+fb_url <- "https://graph.facebook.com/v2.10"
+fb_ads_url <- str_c(fb_url, paste0("act_", buisiness_id), 
+                    "reachestimate", sep = "/")
+
+process_wb_data <- function(d) {
+  as_data_frame(d) %>%
+    unnest() %>%
+    select(-decimal) %>%
+    group_by(value, date) %>%
+    summarise_all(first) %>%
+    ungroup()
+}
+
+admin1_df <- function(iso2){
+  
+  wb_query_pg1 <- list(page=1, format="json")
+  r_pop_pg1 <- 
+    GET(wb_url, query = wb_query_pg1,
+        path=paste0("countries/", iso2, "/indicators/SP.POP.TOTL"))
+  
+  wb_query_pg2 <- list(page=2, format="json")
+  r_pop_pg2 <- 
+    GET(wb_url, query=wb_query_pg2,
+        path=paste0("countries/", iso2, "/indicators/SP.POP.TOTL"))
+
+  df_pg1 <-
+    map(content(r_pop_pg1, as = "parsed")[[2]], 
+        process_wb_data) %>% 
+    bind_rows()
+
+  df_pg2 <- 
+    map(content(r_pop_pg2, as = "parsed")[[2]], 
+        process_wb_data) %>% 
+    bind_rows()
+
+  r_pop_df <- 
+    bind_rows(df_pg2, df_pg1) %>%
+    mutate(value = as.numeric(value), 
+           date = as.numeric(date))
+
+  r_pop_df
+}
+
+country_result <- function(iso2){
+  targeting_specs <- paste0('{"geo_locations": {"countries": ["', iso2, '"]}}')
+  
+  fb_query_multiple <- list(
+    access_token = fb_token, 
+    currency = "USD", 
+    optimize_for = "NONE", 
+    targeting_spec = targeting_specs
+  )
+  
+  r <- GET(fb_ads_url, query = fb_query_multiple)
+  
+  return(data.frame(Country=iso2, Population=fromJSON(prettify(r))$data$users))
+}
+```
+
+1. Use the 2016 1-year ACS to get the population of every state. What are the 5 smallest states?
+
+```{R}
+acs1_url <- "https://api.census.gov/data/2016/acs/acs1" 
+
+acs1_query <- list(
+  get = "B01003_001E,B01003_001M,NAME",
+  `for` = "state:*",
+  key = census_token
+)
+
+acs1_r <- GET(url = acs1_url, query = acs1_query)
+
+acs1_m <- fromJSON(content(acs1_r, as = "text"))
+acs1_df <- as_data_frame(acs1_m[-1, ])
+colnames(acs1_df) <- acs1_m[1, ]
+
+acs1_df <- 
+  acs1_df %>%  
+  mutate(B01003_001E = as.numeric(B01003_001E), 
+         B01003_001M = as.numeric(B01003_001M)) %>%
+  arrange(B01003_001E) %>%
+  select(-B01003_001M) %>%
+  rename(N = B01003_001E) %>% filter(state != 11 & state != 72) # no DC or PR
+
+pander(head(acs1_df, n=5))
+```
+
+2. Request population indicators for three other countries from the World Bank API and plot their population change over time.
+
+```{r}
+iso2s <- c("mx", "gt", "sv", "ni", "cr")
+multi_country_df <- do.call(rbind, lapply(iso2s, function(x) admin1_df(x)))
+
+ggplot(multi_country_df,
+       aes(x=date, y=log(value), group=country, color=country)) + 
+  geom_line() + 
+  theme_minimal(base_size=20) + 
+  labs(title="Log Population of Latin America, 1960-2016", x=NULL, y=NULL) + 
+  scale_color_discrete("Country")
+```
+
+4. Pick 3 other countries and report the number of Facebook users in each. Compare these numbers to the actual populations from the World Bank or some other source.
+
+```{r}
+iso2s <- c("US", "CA", "MX")
+facepop <- do.call(rbind, lapply(iso2s, country_result)) %>%
+  mutate(Country=as.character(Country))
+multi_country_df <- do.call(rbind, lapply(tolower(iso2s), function(x) 
+  admin1_df(x))) %>% filter(date == 2016)
+
+multi_country_df %>% rename(Country=country) %>% 
+  left_join(facepop, "Country") %>%
+  ggplot(aes(x=value, y=Population, color=Country)) + geom_point() + 
+  xlab("World Bank Population Est.") + ylab("Facebook User Population") +
+  labs(title="")
+```
+
+5. Pick another US state and age range, and compare the numbers of men and women.
+
+```{r}
+ts1 <- "{\n\"geo_locations\":{\n\"regions\":[{\n\"key\":\"3893\",\n\"name\":\"Wyoming\"\n}]\n},\n\"genders\":[1],\n\"age_min\": 15,\n\"age_max\":25\n}\n"
+ts2 <- "{\n\"geo_locations\":{\n\"regions\":[{\n\"key\":\"3893\",\n\"name\":\"Wyoming\"\n}]\n},\n\"genders\":[2],\n\"age_min\": 15,\n\"age_max\":25\n}\n"
+
+process_fb_response <- function(ts) {
+  Sys.sleep(5)
+  
+  fb_query <- list(
+    access_token = fb_token, 
+    currency = "USD", 
+    optimize_for = "NONE", 
+    targeting_spec = minify(ts)
+  )
+  
+  r <- GET(fb_ads_url, query = fb_query)
+  
+  ts_df <- 
+    fromJSON(ts) %>%
+    as_data_frame() %>%
+    unnest(geo_locations)
+  
+  r_df <- 
+    content(r, as = "parsed")$data %>%
+    as_data_frame() %>%
+    select(users)
+  
+  bind_cols(ts_df, r_df)
+}
+
+dfWY <- rbind(process_fb_response(ts1), process_fb_response(ts2))
+dfWY
+```
+
+6. Get the Facebook user population for each US state. Compare these estimates to population estimates from the Census ACS.
+
+```{r}
+usvec <- readLines(paste0(
+  "./r-estimates-fb-ads-master/targeting_specs/",
+  "targeting_spec_us_states.json"))
+
+fbstatedf <- do.call(rbind, lapply(usvec, process_fb_response))
+
+fbstatedf %>% rename(NAME=name) %>% right_join(acs1_df, "NAME") %>%
+  ggplot(aes(x=N, y=users)) + geom_point() +
+  labs(x="Population(ACS)", y="FB Users", title="State Population vs FB Users")
+```
