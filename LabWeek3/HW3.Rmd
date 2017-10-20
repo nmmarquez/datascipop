@@ -2,7 +2,7 @@
 title: "Homework 3"
 author: "Neal Marquez"
 date: "October 23, 2017"
-output: pdf_document
+output: html_document
 ---
 
 ## Libraries
@@ -123,6 +123,20 @@ ggplot(multi_country_df,
   scale_color_discrete("Country")
 ```
 
+3. Using the API from Open Street Maps get lat long data and information about an address.
+
+```{r}
+osm_api <- paste0("http://nominatim.openstreetmap.org/search?",
+                  "q=305+Harrison+St+Seattle,+Washington&",
+                  "format=json&polygon=1&addressdetail=1")
+
+osm_r <- GET(url=osm_api)
+
+osm_m <- fromJSON(content(osm_r, as = "text")) %>%
+  select(type, lat, lon, display_name)
+pander(osm_m)
+```
+
 4. Pick 3 other countries and report the number of Facebook users in each. Compare these numbers to the actual populations from the World Bank or some other source.
 
 ```{r}
@@ -171,7 +185,7 @@ process_fb_response <- function(ts) {
 }
 
 dfWY <- rbind(process_fb_response(ts1), process_fb_response(ts2))
-dfWY
+pander(dfWY)
 ```
 
 6. Get the Facebook user population for each US state. Compare these estimates to population estimates from the Census ACS.
